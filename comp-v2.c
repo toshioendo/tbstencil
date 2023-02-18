@@ -1,3 +1,5 @@
+// originally developed by Hiroki Aikawa
+// reengineered by Toshio Endo
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
