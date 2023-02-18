@@ -56,25 +56,75 @@ void init()
   return;
 }
 
-// -------------
-// |app|acp|anp|
-// -------------
-// |apc|acc|anc|
-// -------------
-// |apn|acn|ann|
-// -------------
-#define KERNELD(app, acp, anp, apc, acc, anc, apn, acn, ann)    \
-  ((app)+(acp)+(anp)+(apc)+(acc)+(anc)+(apn)+(acn)+(ann)/9.0)
+#define KERNELD(spp, scp, snp, spc, scc, snc, spn, scn, snn)    \
+  ((spp)+(scp)+(snp)+(spc)+(scc)+(snc)+(spn)+(scn)+(snn)/9.0)
 
 #define KERNEL(AR, X, Y)                                            \
   KERNELD((AR)[(Y)-1][(X)-1], (AR)[(Y)-1][(X)], (AR)[(Y)-1][(X)+1], \
           (AR)[(Y)  ][(X)-1], (AR)[(Y)  ][(X)], (AR)[(Y)  ][(X)+1], \
           (AR)[(Y)+1][(X)-1], (AR)[(Y)+1][(X)], (AR)[(Y)+1][(X)+1])
 
+// a dst point is computed by 9 src points
+// -------------
+// |spp|scp|snp|
+// -------------
+// |spc|scc|snc|
+// -------------
+// |spn|scn|snn|
+// -------------
+
+#if 0
+// No register reuse
 #define COMPLINE(DAR, DX, DY, SAR, SX, SY, LEN) \
   for (int ii = 0; ii < (LEN); ii++) {          \
     DAR[DY][(DX)+ii] = KERNEL(SAR, (SX)+ii, SY);   \
-  } \
+  }
+#else
+// Use register reuse
+#define COMPLINE(DAR, DX, DY, SAR, SX, SY, LEN) \
+  if ((LEN) > 0) {                              \
+    float spp, spc, spn; \
+    float scp = SAR[(SY)-1][(SX)-1]; \
+    float scc = SAR[(SY)  ][(SX)-1]; \
+    float scn = SAR[(SY)+1][(SX)-1]; \
+    float snp = SAR[(SY)-1][(SX)]; \
+    float snc = SAR[(SY)  ][(SX)]; \
+    float snn = SAR[(SY)+1][(SX)]; \
+    \
+    for (int ii = 0; ii < (LEN); ii++) { \
+      spp = scp; spc = scc; spn = scn; \
+      scp = snp; scc = snc; scn = snn; \
+      snp = SAR[(SY)-1][(SX)+ii+1]; \
+      snc = SAR[(SY)  ][(SX)+ii+1]; \
+      snn = SAR[(SY)+1][(SX)+ii+1]; \
+      DAR[DY][(DX)+ii] = KERNELD(spp, scp, snp, spc, scc, snc, spn, scn, snn); \
+    } \
+  }
+
+#endif
+  
+#if 0 // temporary memo routine
+{
+  if ((LEN) > 0) {
+    float spp, spc, spn;
+    float scp = SAR[(SY)-1][(SX)-1];
+    float scc = SAR[(SY)  ][(SX)-1];
+    float scn = SAR[(SY)+1][(SX)-1];
+    float snp = SAR[(SY)-1][(SX)];
+    float snc = SAR[(SY)  ][(SX)];
+    float snn = SAR[(SY)+1][(SX)];
+  
+    for (int ii = 0; ii < (LEN); ii++) {
+      spp = scp; spc = scc; spn = scn;
+      scp = snp; scc = snc; scn = snn;
+      snp = SAR[(SY)-1][(SX)+ii+1];
+      snc = SAR[(SY)  ][(SX)+ii+1];
+      snn = SAR[(SY)+1][(SX)+ii+1];
+      DAR[DY][(DX)+ii] = KERNELD(spp, scp, snp, spc, scc, snc, spn, scn, snn);
+    }
+  }
+}
+#endif
 
 void calc(int nt)
 {
